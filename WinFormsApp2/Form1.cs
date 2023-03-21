@@ -1,7 +1,5 @@
 using Microsoft.Data.Sqlite;
 using Mkb.DapperRepo.Attributes;
-using System.Collections.Generic;
-using System.Drawing.Design;
 
 namespace WinFormsApp2
 {
@@ -10,13 +8,11 @@ namespace WinFormsApp2
         [STAThread]
         static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
             Application.Run(new Form1());
         }
         private ComboBox TableSelectorBox = new ComboBox();
-        private Button Insert = new Button();
+        private Button Insert = new Button { Size = new Size(65, 30) };
         private Panel GroupBox = new Panel();
         static SqliteConnection sqliteConnection = null;
         static Mkb.DapperRepo.Repo.SqlRepo Repo = new Mkb.DapperRepo.Repo.SqlRepo(() => sqliteConnection);
@@ -95,7 +91,7 @@ namespace WinFormsApp2
                 tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response.ToArray() });
             }
 
-            TableSelectorBox.Items.AddRange(tableNames.Select(w=> w.TableName).ToArray());
+            TableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
 
         }
     }
@@ -161,22 +157,16 @@ public record ColInfo
             Location = new Point(1, 1)
         });
 
+        if (CalculateType() == CSharpType.BOOl && ControlItem is not CheckBox) ControlItem = new CheckBox();
 
-
-        if (CalculateType() == CSharpType.BOOl && ControlItem is not CheckBox)
-        {
-            ControlItem = new CheckBox();
-        }
         ControlItem.Location = new Point(100, 1);
         ControlItem.Size = new Size(200, 30);
         ControlItem.Text = "";
         ControlItem.TextChanged += TextBox_TextChanged;
         _valid = false;
         panel.Controls.Add(ControlItem);
-        if (Pk && Sql.ToLower().Contains("autoincrement"))
-        {
-            ControlItem.Enabled = false;
-        }
+        ControlItem.Enabled = !(Pk && Sql.ToLower().Contains("autoincrement"));
+
         return panel;
     }
 
@@ -205,8 +195,7 @@ public record ColInfo
     private CSharpType? cSharpType = null;
     public CSharpType CalculateType()
     {
-        if (cSharpType != null)  return cSharpType.Value; 
-
+        if (cSharpType != null) return cSharpType.Value;
 
         var lower = Type.ToLower();
         if (lower.Contains("int") || lower.Contains("NUMERIC"))
@@ -235,10 +224,10 @@ public record ColInfo
             cSharpType = CSharpType.BOOl;
             return cSharpType.Value;
         }
-            
-            cSharpType = CSharpType.TEXT;
-            return cSharpType.Value;
-        
+
+        cSharpType = CSharpType.TEXT;
+        return cSharpType.Value;
+
     }
 
     public bool Pk { get; set; }
