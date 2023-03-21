@@ -1,18 +1,31 @@
 using Microsoft.Data.Sqlite;
+using Mkb.DapperRepo.Attributes;
+using System.Collections.Generic;
 using System.Drawing.Design;
 
 namespace WinFormsApp2
 {
     public class Form1 : Form
     {
+        [STAThread]
+        static void Main()
+        {
+            // To customize application configuration such as set high DPI settings or default font,
+            // see https://aka.ms/applicationconfiguration.
+            ApplicationConfiguration.Initialize();
+            Application.Run(new Form1());
+        }
         private ComboBox TableSelectorBox = new ComboBox();
+        private Button Insert = new Button();
         private Panel GroupBox = new Panel();
         static SqliteConnection sqliteConnection = null;
-        Mkb.DapperRepo.Repo.SqlRepo Repo = new Mkb.DapperRepo.Repo.SqlRepo(() => sqliteConnection);
+        static Mkb.DapperRepo.Repo.SqlRepo Repo = new Mkb.DapperRepo.Repo.SqlRepo(() => sqliteConnection);
         private Dictionary<string, TableInfo> tables = new Dictionary<string, TableInfo>();
 
         public Form1()
         {
+            Insert.Left = 55;
+            Insert.Text = "Insert";
             this.SuspendLayout();
             this.Size = new System.Drawing.Size(800, 450);
             this.Load += Form1_Load;
@@ -25,27 +38,39 @@ namespace WinFormsApp2
             GroupBox.Location = new Point(5, 50);
             this.Controls.Add(GroupBox);
             this.ResumeLayout(false);
+            Insert.Click += Insert_Click;
         }
 
+        private void Insert_Click(object? sender, EventArgs e)
+        {
+            var table = GroupBox.Name;
+            sqliteConnection.Open();
+            tables[table].Insert(sqliteConnection).ExecuteNonQuery();
+            sqliteConnection.Close();
+
+        }
+
+        private List<Control> _addedControls = new List<Control>();
         private void TableSelectorBox_SelectedValueChanged(object? sender, EventArgs e)
         {
             string selected = TableSelectorBox.SelectedItem.ToString() ?? "";
-            foreach (Control item in GroupBox.Controls)
+            foreach (Control item in _addedControls)
             {
                 GroupBox.Controls.Remove(item);
             }
 
-            GroupBox.Text = selected;
+            GroupBox.Name = selected;
             int top = 0;
             GroupBox.AutoScroll = true;
-            foreach (var item in tables[selected].ColInfos) {
-
-                var b = item.WindowControl();
-                b.Top = top;
+            _addedControls = tables[selected].Controls();
+            foreach (var item in _addedControls)
+            {
+                item.Top = top;
                 top += 35;
-                GroupBox.Controls.Add(b);
+                GroupBox.Controls.Add(item);
             }
-
+            Insert.Top = top;
+            GroupBox.Controls.Add(Insert);
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -60,15 +85,17 @@ namespace WinFormsApp2
 
             sqliteConnection = new SqliteConnection($"Data Source={openFile.FileName}");
 
-            var tableNames = Repo.QueryMany<string>("SELECT tbl_name from sqlite_master").ToArray();
+            var tableNames = Repo.QueryMany<TableDetail>("SELECT tbl_name,sql from sqlite_master").ToArray();
             foreach (var item in tableNames)
             {
-                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item});");
+                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});");
 
-                tables.Add(item, new TableInfo { TableName = item, ColInfos = response.ToArray() });
+                foreach (var col in response) { col.Sql = item.Sql; }
+
+                tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response.ToArray() });
             }
 
-            TableSelectorBox.Items.AddRange(tableNames);
+            TableSelectorBox.Items.AddRange(tableNames.Select(w=> w.TableName).ToArray());
 
         }
     }
@@ -78,12 +105,38 @@ public class TableInfo
 {
     public string TableName { get; set; }
     public ColInfo[] ColInfos { get; set; }
-}
 
+    private List<Control> controls = null;
+
+    public SqliteCommand Insert(SqliteConnection connection)
+    {
+        var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
+        var sql = $"insert into {TableName} ({string.Join(",", items)}) values ({string.Join(",", items.Select(w => $"@{w}"))})";
+        var cmd = new SqliteCommand(sql, connection);
+        foreach (var item in ColInfos.Where(q => q.Value != string.Empty))
+        {
+            cmd.Parameters.Add(new SqliteParameter("@" + item.Name, item.Value.ToLower() == "blank" ? "" : item.Value));
+        }
+        return cmd;
+    }
+    public List<Control> Controls()
+    {
+        controls ??= ColInfos.Select(w => w.WindowControl()).ToList();
+        return controls;
+    }
+}
+public class TableDetail
+{
+    [SqlColumnName("tbl_name")]
+    public string TableName { get; set; }
+    public string Sql { get; set; }
+}
 public record ColInfo
 {
     public string Name { get; set; }
     public string Type { get; set; }
+
+    public string Sql { get; set; }
     public bool NotNull { get; set; }
 
     private bool _valid = false;
@@ -108,6 +161,8 @@ public record ColInfo
             Location = new Point(1, 1)
         });
 
+
+
         if (CalculateType() == CSharpType.BOOl && ControlItem is not CheckBox)
         {
             ControlItem = new CheckBox();
@@ -118,12 +173,16 @@ public record ColInfo
         ControlItem.TextChanged += TextBox_TextChanged;
         _valid = false;
         panel.Controls.Add(ControlItem);
+        if (Pk && Sql.ToLower().Contains("autoincrement"))
+        {
+            ControlItem.Enabled = false;
+        }
         return panel;
     }
 
     private void TextBox_TextChanged(object? sender, EventArgs e)
     {
-        switch(CalculateType())
+        switch (CalculateType())
         {
             case CSharpType.DATETIME:
             case CSharpType.DATE:
