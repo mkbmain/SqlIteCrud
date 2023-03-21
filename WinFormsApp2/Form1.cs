@@ -202,18 +202,43 @@ public record ColInfo
                 break;
         }
     }
-
+    private CSharpType? cSharpType = null;
     public CSharpType CalculateType()
     {
-        // could maybe cache this but meh
-        var lower = Type.ToLower();
-        if (lower.Contains("int") || lower.Contains("NUMERIC")) return CSharpType.INTEGER;
-        if (lower.Contains("decimal") || lower.Contains("NUMERIC") || lower.Contains("real") || lower.Contains("double") || lower.Contains("float")) return CSharpType.REAL;
-        if (lower.Contains("datetime")) return CSharpType.DATETIME;
-        if (lower.Contains("date")) return CSharpType.DATE;
+        if (cSharpType != null)  return cSharpType.Value; 
 
-        if (lower.Contains("bit") || lower.Contains("boolean")) return CSharpType.BOOl;
-        return CSharpType.TEXT;
+
+        var lower = Type.ToLower();
+        if (lower.Contains("int") || lower.Contains("NUMERIC"))
+        {
+            cSharpType = CSharpType.INTEGER;
+            return cSharpType.Value;
+        }
+        if (lower.Contains("decimal") || lower.Contains("NUMERIC") || lower.Contains("real") || lower.Contains("double") || lower.Contains("float"))
+        {
+            cSharpType = CSharpType.REAL;
+            return cSharpType.Value;
+        }
+        if (lower.Contains("datetime"))
+        {
+            cSharpType = CSharpType.DATETIME;
+            return cSharpType.Value;
+        }
+        if (lower.Contains("date"))
+        {
+            cSharpType = CSharpType.DATE;
+            return cSharpType.Value;
+        }
+
+        if (lower.Contains("bit") || lower.Contains("boolean"))
+        {
+            cSharpType = CSharpType.BOOl;
+            return cSharpType.Value;
+        }
+            
+            cSharpType = CSharpType.TEXT;
+            return cSharpType.Value;
+        
     }
 
     public bool Pk { get; set; }
