@@ -12,6 +12,7 @@ namespace WinFormsApp2
             Application.Run(new Form1());
         }
 
+        private List<Control> _addedControls = new();
         private readonly ComboBox _tableSelectorBox = new();
         private readonly Button _insert = new() { Size = new Size(65, 30) };
         private readonly Panel _groupBox = new();
@@ -48,7 +49,7 @@ namespace WinFormsApp2
                 MessageBox.Show("Done");
                 foreach (var w in _tables[table].ColInfos)
                 {
-                   w.ResetValue();
+                    w.ResetValue();
                 }
             }
             catch (Exception exception)
@@ -59,8 +60,6 @@ namespace WinFormsApp2
             _sqliteConnection.Close();
             TableSelectorBox_SelectedValueChanged(sender, e);
         }
-
-        private List<Control> _addedControls = new();
 
         private void TableSelectorBox_SelectedValueChanged(object sender, EventArgs e)
         {
@@ -154,19 +153,17 @@ public class TableDetail
 public record ColInfo
 {
     public string Name { get; set; }
+    
     public string Type { get; set; }
-
+    
     public string Sql { get; set; }
-    public bool NotNull { get; set; }
-
-    private bool _valid = false;
-
+    
     public CSharpType RealType => CalculateType();
 
     private Control ControlItem = new TextBox();
-
-    public bool Valid => _valid;
+    
     public void ResetValue() => ControlItem.Text = "";
+    
     public string Value => ControlItem is CheckBox ? ((CheckBox)ControlItem).Checked.ToString() : ControlItem.Text;
 
     public Control WindowControl()
@@ -189,7 +186,6 @@ public record ColInfo
         ControlItem.Size = new Size(200, 30);
         ControlItem.Text = "";
         ControlItem.TextChanged += TextBox_TextChanged;
-        _valid = false;
         panel.Controls.Add(ControlItem);
         ControlItem.Enabled = !(Pk && Sql.ToLower().Contains("autoincrement"));
 
