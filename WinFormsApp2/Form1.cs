@@ -42,8 +42,22 @@ namespace WinFormsApp2
         {
             var table = _groupBox.Name;
             _sqliteConnection.Open();
-            _tables[table].Insert(_sqliteConnection).ExecuteNonQuery();
+            try
+            {
+                _tables[table].Insert(_sqliteConnection).ExecuteNonQuery();
+                MessageBox.Show("Done");
+                foreach (var w in _tables[table].ColInfos)
+                {
+                   w.ResetValue();
+                }
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message);
+            }
+
             _sqliteConnection.Close();
+            TableSelectorBox_SelectedValueChanged(sender, e);
         }
 
         private List<Control> _addedControls = new();
@@ -152,6 +166,7 @@ public record ColInfo
     private Control ControlItem = new TextBox();
 
     public bool Valid => _valid;
+    public void ResetValue() => ControlItem.Text = "";
     public string Value => ControlItem is CheckBox ? ((CheckBox)ControlItem).Checked.ToString() : ControlItem.Text;
 
     public Control WindowControl()
