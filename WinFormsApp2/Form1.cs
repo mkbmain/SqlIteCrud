@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.Sqlite;
 using Mkb.DapperRepo.Attributes;
 
@@ -16,6 +17,7 @@ namespace WinFormsApp2
         private readonly ComboBox _tableSelectorBox = new();
         private readonly Button _insert = new() { Size = new Size(65, 30) };
         private readonly Panel _groupBox = new();
+        private readonly DataGridView _dataGridView = new() { Size = new Size(450, 1), Location = new Point(310, 1) };
         private static SqliteConnection _sqliteConnection;
         private static readonly Mkb.DapperRepo.Repo.SqlRepo Repo = new(() => _sqliteConnection);
         private Dictionary<string, TableInfo> _tables = new();
@@ -34,9 +36,37 @@ namespace WinFormsApp2
             _groupBox.Text = "";
             _groupBox.Size = new Size(Width - 33, Height - 105);
             _groupBox.Location = new Point(5, 50);
+            _dataGridView.Size = new Size(_groupBox.Size.Width - 350, _groupBox.Height - 10);
+            _groupBox.Controls.Add(_dataGridView);
             Controls.Add(_groupBox);
             ResumeLayout(false);
             _insert.Click += Insert_Click;
+        }
+
+        private void Populate()
+        {
+            _sqliteConnection.Open();
+            var connection = _tables[_groupBox.Name].GetAll(_sqliteConnection);
+            _dataGridView.DataSource = null;
+            var dataTable = new DataTable();
+            var colNames = _tables[_groupBox.Name].ColInfos.Select(w => w.Name).ToArray();
+            foreach (var s in colNames)
+            {
+                dataTable.Columns.Add(new DataColumn(s));
+            }
+
+            using (var read = connection.ExecuteReader())
+            {
+                while (read.Read())
+                {
+                    var list = colNames.Select(item => read.GetValue(read.GetOrdinal(item))).ToArray();
+
+                    dataTable.Rows.Add(list);
+                }
+            }
+
+            _sqliteConnection.Close();
+            _dataGridView.DataSource = dataTable;
         }
 
         private void Insert_Click(object sender, EventArgs e)
@@ -82,6 +112,7 @@ namespace WinFormsApp2
 
             _insert.Top = top;
             _groupBox.Controls.Add(_insert);
+            Populate();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -112,6 +143,8 @@ namespace WinFormsApp2
             }
 
             _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
+
+            _dataGridView.ReadOnly = true;
         }
     }
 }
@@ -123,6 +156,11 @@ public class TableInfo
 
     private List<Control> controls = null;
 
+    public SqliteCommand GetAll(SqliteConnection connection)
+    {
+        return new SqliteCommand($"select * from {TableName}", connection);
+    }
+
     public SqliteCommand Insert(SqliteConnection connection)
     {
         var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
@@ -131,7 +169,7 @@ public class TableInfo
         var cmd = new SqliteCommand(sql, connection);
         foreach (var item in ColInfos.Where(q => q.Value != string.Empty))
         {
-            cmd.Parameters.Add(new SqliteParameter("@" + item.Name, item.Value.ToLower() == "blank" ? "" : item.Value));
+            cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value.ToLower() == "blank" ? "" : item.Value));
         }
 
         return cmd;
@@ -153,17 +191,17 @@ public class TableDetail
 public record ColInfo
 {
     public string Name { get; set; }
-    
+
     public string Type { get; set; }
-    
+
     public string Sql { get; set; }
-    
+
     public CSharpType RealType => CalculateType();
 
     private Control ControlItem = new TextBox();
-    
+
     public void ResetValue() => ControlItem.Text = "";
-    
+
     public string Value => ControlItem is CheckBox ? ((CheckBox)ControlItem).Checked.ToString() : ControlItem.Text;
 
     public Control WindowControl()
@@ -198,19 +236,19 @@ public record ColInfo
         {
             case CSharpType.DATETIME:
             case CSharpType.DATE:
-                ControlItem.BackColor = DateTime.TryParse(Value, out var _) ? Color.White : Color.Red;
+                ControlItem.BackColor = DateTime.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
 
             case CSharpType.INTEGER:
-                ControlItem.BackColor = int.TryParse(Value, out var _) ? Color.White : Color.Red;
+                ControlItem.BackColor = int.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
 
             case CSharpType.REAL:
-                ControlItem.BackColor = decimal.TryParse(Value, out var _) ? Color.White : Color.Red;
+                ControlItem.BackColor = decimal.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
 
             case CSharpType.BOOl:
-                ControlItem.BackColor = bool.TryParse(Value, out var _) ? Color.White : Color.Red;
+                ControlItem.BackColor = bool.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
         }
     }
