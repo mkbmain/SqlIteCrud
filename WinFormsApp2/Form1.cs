@@ -2,7 +2,6 @@ using System.CodeDom.Compiler;
 using System.Data;
 using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
-using Microsoft.VisualBasic;
 using Mkb.DapperRepo.Attributes;
 
 namespace WinFormsApp2
@@ -48,8 +47,8 @@ namespace WinFormsApp2
             _groupBox.Controls.Add(_dataGridView);
             Controls.Add(_groupBox);
             ResumeLayout(false);
-            _insert.Click += Insert_Click;
-            _update.Click += _update_Click;
+            _insert.Click += (sender,e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
+            _update.Click += (sender,e) => Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e);
             _dataGridView.SelectionChanged += _dataGridView_SelectionChanged;
         }
 
@@ -91,27 +90,14 @@ namespace WinFormsApp2
             Loading = false;
         }
 
-        private void Insert_Click(object sender, EventArgs e)
-        {
-            Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
-        }
-        private void _update_Click(object sender, EventArgs e)
-        {
-            Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e);
-        }
-
         private void Execute(Action<string> action, object sender, EventArgs e)
         {
-            var table = _groupBox.Name;
             _sqliteConnection.Open();
             try
             {
-                action(table);
+                action(_groupBox.Name);
                 MessageBox.Show("Done");
-                foreach (var w in _tables[table].ColInfos)
-                {
-                    w.SetValue("");
-                }
+                foreach (var w in _tables[_groupBox.Name].ColInfos)  w.SetValue("");
             }
             catch (Exception exception)
             {
@@ -125,10 +111,7 @@ namespace WinFormsApp2
         private void TableSelectorBox_SelectedValueChanged(object sender, EventArgs e)
         {
             var selected = _tableSelectorBox.SelectedItem.ToString() ?? "";
-            foreach (var item in _addedControls)
-            {
-                _groupBox.Controls.Remove(item);
-            }
+            foreach (var item in _addedControls) _groupBox.Controls.Remove(item);
 
             _groupBox.Name = selected;
             var top = 0;
@@ -166,13 +149,9 @@ namespace WinFormsApp2
             {
                 var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});");
 
-                foreach (var col in response)
-                {
-                    col.Sql = item.Sql;
-                }
-
-                _tables.Add(item.TableName,
-                    new TableInfo { TableName = item.TableName, ColInfos = response.ToArray() });
+                foreach (var col in response) col.Sql = item.Sql;
+                
+                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response.ToArray() });
             }
 
             _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
@@ -189,10 +168,8 @@ public class TableInfo
 
     private List<Control> controls = null;
 
-    public SqliteCommand GetAll(SqliteConnection connection)
-    {
-        return new SqliteCommand($"select * from {TableName}", connection);
-    }
+    public SqliteCommand GetAll(SqliteConnection connection) =>  new SqliteCommand($"select * from {TableName}", connection);
+    
 
     public SqliteCommand Insert(SqliteConnection connection)
     {
@@ -243,7 +220,8 @@ public class TableInfo
 
 public class TableDetail
 {
-    [SqlColumnName("tbl_name")] public string TableName { get; set; }
+    [SqlColumnName("tbl_name")]
+     public string TableName { get; set; }
     public string Sql { get; set; }
 }
 
