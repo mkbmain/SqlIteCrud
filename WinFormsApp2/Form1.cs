@@ -1,6 +1,4 @@
-using System.CodeDom.Compiler;
 using System.Data;
-using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using Mkb.DapperRepo.Attributes;
 
@@ -35,7 +33,7 @@ namespace WinFormsApp2
             _update.Text = "Update";
             _delete.Text = "Delete";
             _update.Left = _insert.Right + 5;
-            _delete.Left = _update.Right +5;
+            _delete.Left = _update.Right + 5;
             SuspendLayout();
             Size = new Size(800, 450);
             Load += Form1_Load;
@@ -49,11 +47,19 @@ namespace WinFormsApp2
             _groupBox.Controls.Add(_dataGridView);
             Controls.Add(_groupBox);
             ResumeLayout(false);
-            _insert.Click += (sender,e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
-            _update.Click += (sender,e) => Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e);
-            _delete.Click += (sender,e) => Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e);
+            _insert.Click += (sender, e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
+            _update.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e); };
+            _delete.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e); };
             _dataGridView.SelectionChanged += _dataGridView_SelectionChanged;
         }
+        private bool PrimaryKeyPopulatedCheck()
+        {
+            var b = !string.IsNullOrWhiteSpace(_tables[_groupBox.Name].PrimaryKey.Value);
+            if (!b)
+                MessageBox.Show("To update and delete you need a primary key to be populated");
+            return b;
+        }
+
 
         private void _dataGridView_SelectionChanged(object sender, EventArgs e)
         {
@@ -100,7 +106,7 @@ namespace WinFormsApp2
             {
                 action(_groupBox.Name);
                 MessageBox.Show("Done");
-                foreach (var w in _tables[_groupBox.Name].ColInfos)  w.SetValue("");
+                foreach (var w in _tables[_groupBox.Name].ColInfos) w.SetValue("");
             }
             catch (Exception exception)
             {
@@ -155,13 +161,13 @@ namespace WinFormsApp2
                 var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});");
 
                 foreach (var col in response) col.Sql = item.Sql;
-                
+
                 _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response.ToArray() });
             }
 
             _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
 
-            _dataGridView.ReadOnly = true;      
+            _dataGridView.ReadOnly = true;
         }
     }
 }
@@ -173,10 +179,10 @@ public class TableInfo
 
     private List<Control> controls = null;
 
-    private ColInfo PrimaryKey => ColInfos.FirstOrDefault(w=> w.Pk);
+    public ColInfo PrimaryKey => ColInfos.FirstOrDefault(w => w.Pk);
 
-    public SqliteCommand GetAll(SqliteConnection connection) =>  new SqliteCommand($"select * from {TableName}", connection);
-    
+    public SqliteCommand GetAll(SqliteConnection connection) => new SqliteCommand($"select * from {TableName}", connection);
+
 
     public SqliteCommand Insert(SqliteConnection connection)
     {
@@ -194,7 +200,7 @@ public class TableInfo
 
     public SqliteCommand Delete(SqliteConnection connection) =>
          new SqliteCommand($"delete from {TableName} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
-    
+
     public SqliteCommand Update(SqliteConnection connection)
     {
         var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
@@ -230,7 +236,7 @@ public class TableInfo
 public class TableDetail
 {
     [SqlColumnName("tbl_name")]
-     public string TableName { get; set; }
+    public string TableName { get; set; }
     public string Sql { get; set; }
 }
 
