@@ -21,6 +21,7 @@ namespace WinFormsApp2
         private readonly ComboBox _tableSelectorBox = new();
         private readonly Button _insert = new() { Size = new Size(65, 30) };
         private readonly Button _update = new() { Size = new Size(65, 30) };
+        private readonly Button _delete = new() { Size = new Size(65, 30) };
         private readonly Panel _groupBox = new();
         private readonly DataGridView _dataGridView = new() { SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
 
@@ -32,7 +33,9 @@ namespace WinFormsApp2
             _insert.Left = 55;
             _insert.Text = "Insert";
             _update.Text = "Update";
+            _delete.Text = "Delete";
             _update.Left = _insert.Right + 5;
+            _delete.Left = _update.Right +5;
             SuspendLayout();
             Size = new Size(800, 450);
             Load += Form1_Load;
@@ -49,6 +52,7 @@ namespace WinFormsApp2
             ResumeLayout(false);
             _insert.Click += (sender,e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
             _update.Click += (sender,e) => Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e);
+            _delete.Click += (sender,e) => Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e);
             _dataGridView.SelectionChanged += _dataGridView_SelectionChanged;
         }
 
@@ -126,8 +130,10 @@ namespace WinFormsApp2
 
             _insert.Top = top;
             _update.Top = top;
+            _delete.Top = top;
             _groupBox.Controls.Add(_insert);
             _groupBox.Controls.Add(_update);
+            _groupBox.Controls.Add(_delete);
             Populate();
         }
 
@@ -184,6 +190,14 @@ public class TableInfo
 
         return cmd;
     }
+
+    public SqliteCommand Delete(SqliteConnection connection)
+    {
+        var primaryKey = ColInfos.FirstOrDefault(w => w.Pk);
+        var sql = $"delete from {TableName} where {primaryKey.Name} = {primaryKey.Value}";
+        return new SqliteCommand(sql, connection);
+    }
+
     public SqliteCommand Update(SqliteConnection connection)
     {
         var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
@@ -271,7 +285,7 @@ public record ColInfo
         return panel;
     }
 
-    private void TextBox_TextChanged(object? sender, EventArgs e)
+    private void TextBox_TextChanged(object sender, EventArgs e)
     {
         if (!ControlItem.Enabled) { return; }
         switch (CalculateType())
