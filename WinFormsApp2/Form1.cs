@@ -185,9 +185,7 @@ public class TableInfo
             $"insert into {TableName} ({string.Join(",", names)}) values ({string.Join(",", names.Select(w => $"@{w}"))})";
         var cmd = new SqliteCommand(sql, connection);
         foreach (var item in items)
-        {
             cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value == "BLANK" ? "" : item.Value));
-        }
 
         return cmd;
     }
