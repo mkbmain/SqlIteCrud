@@ -250,13 +250,9 @@ public class TableDetail
 public record ColInfo
 {
     public string Name { get; set; }
-
     public string Type { get; set; }
-
     public string Sql { get; set; }
-
     public CSharpType RealType => CalculateType();
-
     private Control ControlItem = new TextBox();
 
     public void SetValue(string text)
