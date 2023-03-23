@@ -60,7 +60,6 @@ namespace WinFormsApp2
             return b;
         }
 
-
         private void _dataGridView_SelectionChanged(object sender, EventArgs e)
         {
             if (Loading) return;
@@ -88,9 +87,7 @@ namespace WinFormsApp2
             {
                 while (read.Read())
                 {
-                    var list = colNames.Select(item => read.GetValue(read.GetOrdinal(item))).ToArray();
-
-                    dataTable.Rows.Add(list);
+                    dataTable.Rows.Add(colNames.Select(item => read.GetValue(read.GetOrdinal(item))).ToArray());
                 }
             }
 
@@ -158,15 +155,14 @@ namespace WinFormsApp2
             var tableNames = Repo.QueryMany<TableDetail>(@"SELECT * from sqlite_master").ToArray();
             foreach (var item in tableNames)
             {
-                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});");
+                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});").ToArray();
 
                 foreach (var col in response) col.Sql = item.Sql;
 
-                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response.ToArray() });
+                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response });
             }
 
             _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
-
             _dataGridView.ReadOnly = true;
         }
     }
@@ -174,15 +170,12 @@ namespace WinFormsApp2
 
 public class TableInfo
 {
+    private List<Control> controls = null;
+    public ColInfo PrimaryKey => ColInfos.FirstOrDefault(w => w.Pk);
     public string TableName { get; set; }
     public ColInfo[] ColInfos { get; set; }
 
-    private List<Control> controls = null;
-
-    public ColInfo PrimaryKey => ColInfos.FirstOrDefault(w => w.Pk);
-
     public SqliteCommand GetAll(SqliteConnection connection) => new SqliteCommand($"select * from {TableName}", connection);
-
 
     public SqliteCommand Insert(SqliteConnection connection)
     {
@@ -199,7 +192,7 @@ public class TableInfo
     }
 
     public SqliteCommand Delete(SqliteConnection connection) =>
-         new SqliteCommand($"delete from {TableName} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
+         new($"delete from {TableName} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
 
     public SqliteCommand Update(SqliteConnection connection)
     {
@@ -242,10 +235,10 @@ public class TableDetail
 
 public record ColInfo
 {
+    public bool Pk { get; set; }
     public string Name { get; set; }
     public string Type { get; set; }
     public string Sql { get; set; }
-    public CSharpType RealType => CalculateType();
     private Control ControlItem = new TextBox();
 
     public void SetValue(string text)
@@ -317,42 +310,23 @@ public record ColInfo
         if (cSharpType != null) return cSharpType.Value;
 
         var lower = Type.ToLower();
+
         if (lower.Contains("int") || lower.Contains("NUMERIC"))
-        {
             cSharpType = CSharpType.INTEGER;
-            return cSharpType.Value;
-        }
-
-        if (lower.Contains("decimal") || lower.Contains("NUMERIC") || lower.Contains("real") ||
+        else if (lower.Contains("decimal") || lower.Contains("NUMERIC") || lower.Contains("real") ||
             lower.Contains("double") || lower.Contains("float"))
-        {
             cSharpType = CSharpType.REAL;
-            return cSharpType.Value;
-        }
-
-        if (lower.Contains("datetime"))
-        {
+        else if (lower.Contains("datetime"))
             cSharpType = CSharpType.DATETIME;
-            return cSharpType.Value;
-        }
-
-        if (lower.Contains("date"))
-        {
+        else if (lower.Contains("date"))
             cSharpType = CSharpType.DATE;
-            return cSharpType.Value;
-        }
-
-        if (lower.Contains("bit") || lower.Contains("boolean"))
-        {
+        else if (lower.Contains("bit") || lower.Contains("boolean"))
             cSharpType = CSharpType.BOOl;
-            return cSharpType.Value;
-        }
+        else
+            cSharpType = CSharpType.TEXT;
 
-        cSharpType = CSharpType.TEXT;
         return cSharpType.Value;
     }
-
-    public bool Pk { get; set; }
 }
 
 // https://www.sqlite.org/datatype3.html
