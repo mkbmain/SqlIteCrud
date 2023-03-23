@@ -179,13 +179,14 @@ public class TableInfo
 
     public SqliteCommand Insert(SqliteConnection connection)
     {
-        var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
+        var items = ColInfos.Where(q => q.Value != string.Empty).Where(e=> !e.AutoGen).ToArray();
+        var names = items.Select(w=> w.Name).ToArray();
         var sql =
-            $"insert into {TableName} ({string.Join(",", items)}) values ({string.Join(",", items.Select(w => $"@{w}"))})";
+            $"insert into {TableName} ({string.Join(",", names)}) values ({string.Join(",", names.Select(w => $"@{w}"))})";
         var cmd = new SqliteCommand(sql, connection);
-        foreach (var item in ColInfos.Where(q => q.Value != string.Empty))
+        foreach (var item in items)
         {
-            cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value.ToLower() == "blank" ? "" : item.Value));
+            cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value == "BLANK" ? "" : item.Value));
         }
 
         return cmd;
@@ -196,12 +197,12 @@ public class TableInfo
 
     public SqliteCommand Update(SqliteConnection connection)
     {
-        var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
+        var items = ColInfos.Select(w => w.Name).ToArray();
         var part = string.Join(",", items.Select(w => $"{w} = @{w}"));
         var cmd = new SqliteCommand($"update {TableName} set {part} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
         foreach (var item in ColInfos)
         {
-            cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value.ToLower() == "blank" ? "" : item.Value == "" ? null : item.Value));
+            cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value == "BLANK" ? "" : item.Value == "" ? null : item.Value));
         }
         return cmd;
     }
@@ -239,6 +240,7 @@ public record ColInfo
     public string Name { get; set; }
     public string Type { get; set; }
     public string Sql { get; set; }
+    public bool AutoGen => (Pk && Sql.ToLower().Contains("autoincrement"));
     private Control ControlItem = new TextBox();
 
     public void SetValue(string text)
@@ -274,7 +276,7 @@ public record ColInfo
         ControlItem.Text = "";
         ControlItem.TextChanged += TextBox_TextChanged;
         panel.Controls.Add(ControlItem);
-        ControlItem.Enabled = !(Pk && Sql.ToLower().Contains("autoincrement"));
+        ControlItem.Enabled = !AutoGen;
 
         return panel;
     }
@@ -288,15 +290,12 @@ public record ColInfo
             case CSharpType.DATE:
                 ControlItem.BackColor = DateTime.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
-
             case CSharpType.INTEGER:
                 ControlItem.BackColor = int.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
-
             case CSharpType.REAL:
                 ControlItem.BackColor = decimal.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
-
             case CSharpType.BOOl:
                 ControlItem.BackColor = bool.TryParse(Value, out _) ? Color.White : Color.Red;
                 break;
