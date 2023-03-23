@@ -19,9 +19,9 @@ namespace WinFormsApp2
         }
 
         private readonly ComboBox _tableSelectorBox = new();
-        private readonly Button _insert = new() { Size = new Size(65, 30) };
-        private readonly Button _update = new() { Size = new Size(65, 30) };
-        private readonly Button _delete = new() { Size = new Size(65, 30) };
+        private readonly Button _insert = new() { Size = new Size(85, 30) };
+        private readonly Button _update = new() { Size = new Size(85, 30) };
+        private readonly Button _delete = new() { Size = new Size(85, 30) };
         private readonly Panel _groupBox = new();
         private readonly DataGridView _dataGridView = new() { SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
 
@@ -30,7 +30,7 @@ namespace WinFormsApp2
 
         private Form1()
         {
-            _insert.Left = 55;
+            _insert.Left = 35;
             _insert.Text = "Insert";
             _update.Text = "Update";
             _delete.Text = "Delete";
@@ -41,7 +41,6 @@ namespace WinFormsApp2
             Load += Form1_Load;
             _tableSelectorBox.SelectedValueChanged += TableSelectorBox_SelectedValueChanged;
             FormBorderStyle = FormBorderStyle.FixedToolWindow;
-            ShowInTaskbar = true;
             Controls.Add(_tableSelectorBox);
             _groupBox.Text = "";
             _groupBox.Size = new Size(Width - 33, Height - 105);
@@ -162,7 +161,7 @@ namespace WinFormsApp2
 
             _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
 
-            _dataGridView.ReadOnly = true;
+            _dataGridView.ReadOnly = true;      
         }
     }
 }
@@ -173,6 +172,8 @@ public class TableInfo
     public ColInfo[] ColInfos { get; set; }
 
     private List<Control> controls = null;
+
+    private ColInfo PrimaryKey => ColInfos.FirstOrDefault(w=> w.Pk);
 
     public SqliteCommand GetAll(SqliteConnection connection) =>  new SqliteCommand($"select * from {TableName}", connection);
     
@@ -191,20 +192,14 @@ public class TableInfo
         return cmd;
     }
 
-    public SqliteCommand Delete(SqliteConnection connection)
-    {
-        var primaryKey = ColInfos.FirstOrDefault(w => w.Pk);
-        var sql = $"delete from {TableName} where {primaryKey.Name} = {primaryKey.Value}";
-        return new SqliteCommand(sql, connection);
-    }
-
+    public SqliteCommand Delete(SqliteConnection connection) =>
+         new SqliteCommand($"delete from {TableName} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
+    
     public SqliteCommand Update(SqliteConnection connection)
     {
         var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
         var part = string.Join(",", items.Select(w => $"{w} = @{w}"));
-        var primaryKey = ColInfos.FirstOrDefault(w => w.Pk);
-        var sql = $"update {TableName} set {part} where {primaryKey.Name} = {primaryKey.Value}";
-        var cmd = new SqliteCommand(sql, connection);
+        var cmd = new SqliteCommand($"update {TableName} set {part} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
         foreach (var item in ColInfos)
         {
             cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value.ToLower() == "blank" ? "" : item.Value == "" ? null : item.Value));
