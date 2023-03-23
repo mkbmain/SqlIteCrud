@@ -1,11 +1,17 @@
+using System.CodeDom.Compiler;
 using System.Data;
+using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
+using Microsoft.VisualBasic;
 using Mkb.DapperRepo.Attributes;
 
 namespace WinFormsApp2
 {
     public class Form1 : Form
     {
+        private static SqliteConnection _sqliteConnection;
+        private static readonly Mkb.DapperRepo.Repo.SqlRepo Repo = new(() => _sqliteConnection);
+        private static bool Loading = false;
         [STAThread]
         private static void Main()
         {
@@ -13,19 +19,21 @@ namespace WinFormsApp2
             Application.Run(new Form1());
         }
 
-        private List<Control> _addedControls = new();
         private readonly ComboBox _tableSelectorBox = new();
         private readonly Button _insert = new() { Size = new Size(65, 30) };
+        private readonly Button _update = new() { Size = new Size(65, 30) };
         private readonly Panel _groupBox = new();
-        private readonly DataGridView _dataGridView = new() { Size = new Size(450, 1), Location = new Point(310, 1) };
-        private static SqliteConnection _sqliteConnection;
-        private static readonly Mkb.DapperRepo.Repo.SqlRepo Repo = new(() => _sqliteConnection);
+        private readonly DataGridView _dataGridView = new() { SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
+
+        private List<Control> _addedControls = new();
         private Dictionary<string, TableInfo> _tables = new();
 
         private Form1()
         {
             _insert.Left = 55;
             _insert.Text = "Insert";
+            _update.Text = "Update";
+            _update.Left = _insert.Right + 5;
             SuspendLayout();
             Size = new Size(800, 450);
             Load += Form1_Load;
@@ -41,19 +49,32 @@ namespace WinFormsApp2
             Controls.Add(_groupBox);
             ResumeLayout(false);
             _insert.Click += Insert_Click;
+            _update.Click += _update_Click;
+            _dataGridView.SelectionChanged += _dataGridView_SelectionChanged;
+        }
+
+        private void _dataGridView_SelectionChanged(object sender, EventArgs e)
+        {
+            if (Loading) return;
+            var dict = new Dictionary<string, string>();
+            foreach (DataGridViewCell cell in _dataGridView.SelectedCells)
+            {
+                var header = _dataGridView.Columns[cell.ColumnIndex].HeaderText;
+                var value = cell.Value.ToString();
+                dict.Add(header, value);
+            }
+            _tables[_groupBox.Name].SetValues(dict);
         }
 
         private void Populate()
         {
             _sqliteConnection.Open();
+            Loading = true;
             var connection = _tables[_groupBox.Name].GetAll(_sqliteConnection);
             _dataGridView.DataSource = null;
             var dataTable = new DataTable();
             var colNames = _tables[_groupBox.Name].ColInfos.Select(w => w.Name).ToArray();
-            foreach (var s in colNames)
-            {
-                dataTable.Columns.Add(new DataColumn(s));
-            }
+            dataTable.Columns.AddRange(colNames.Select(w => new DataColumn(w)).ToArray());
 
             using (var read = connection.ExecuteReader())
             {
@@ -67,19 +88,29 @@ namespace WinFormsApp2
 
             _sqliteConnection.Close();
             _dataGridView.DataSource = dataTable;
+            Loading = false;
         }
 
         private void Insert_Click(object sender, EventArgs e)
+        {
+            Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
+        }
+        private void _update_Click(object sender, EventArgs e)
+        {
+            Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e);
+        }
+
+        private void Execute(Action<string> action, object sender, EventArgs e)
         {
             var table = _groupBox.Name;
             _sqliteConnection.Open();
             try
             {
-                _tables[table].Insert(_sqliteConnection).ExecuteNonQuery();
+                action(table);
                 MessageBox.Show("Done");
                 foreach (var w in _tables[table].ColInfos)
                 {
-                    w.ResetValue();
+                    w.SetValue("");
                 }
             }
             catch (Exception exception)
@@ -111,7 +142,9 @@ namespace WinFormsApp2
             }
 
             _insert.Top = top;
+            _update.Top = top;
             _groupBox.Controls.Add(_insert);
+            _groupBox.Controls.Add(_update);
             Populate();
         }
 
@@ -174,6 +207,32 @@ public class TableInfo
 
         return cmd;
     }
+    public SqliteCommand Update(SqliteConnection connection)
+    {
+        var items = ColInfos.Where(q => q.Value != string.Empty).Select(w => w.Name).ToArray();
+        var part = string.Join(",", items.Select(w => $"{w} = @{w}"));
+        var primaryKey = ColInfos.FirstOrDefault(w => w.Pk);
+        var sql = $"update {TableName} set {part} where {primaryKey.Name} = {primaryKey.Value}";
+        var cmd = new SqliteCommand(sql, connection);
+        foreach (var item in ColInfos)
+        {
+            cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value.ToLower() == "blank" ? "" : item.Value == "" ? null : item.Value));
+        }
+        return cmd;
+    }
+
+
+    public void SetValues(Dictionary<string, string> dict)
+    {
+        foreach (var item in ColInfos) item.SetValue("");
+
+        foreach (var item in dict)
+        {
+            var col = ColInfos.FirstOrDefault(w => w.Name == item.Key);
+            if (col is null) continue;
+            col.SetValue(item.Value.ToString());
+        }
+    }
 
     public List<Control> Controls()
     {
@@ -200,7 +259,15 @@ public record ColInfo
 
     private Control ControlItem = new TextBox();
 
-    public void ResetValue() => ControlItem.Text = "";
+    public void SetValue(string text)
+    {
+        if (ControlItem is CheckBox)
+        {
+            ((CheckBox)ControlItem).Checked = bool.Parse(text == "" ? "false" : text);
+            return;
+        }
+        ControlItem.Text = text;
+    }
 
     public string Value => ControlItem is CheckBox ? ((CheckBox)ControlItem).Checked.ToString() : ControlItem.Text;
 
@@ -232,6 +299,7 @@ public record ColInfo
 
     private void TextBox_TextChanged(object? sender, EventArgs e)
     {
+        if (!ControlItem.Enabled) { return; }
         switch (CalculateType())
         {
             case CSharpType.DATETIME:
