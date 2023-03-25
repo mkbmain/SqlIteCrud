@@ -17,9 +17,9 @@ namespace WinFormsApp2
         }
 
         private readonly ComboBox _tableSelectorBox = new();
-        private readonly Button _insert = new() { Size = new Size(85, 30) };
-        private readonly Button _update = new() { Size = new Size(85, 30) };
-        private readonly Button _delete = new() { Size = new Size(85, 30) };
+        private readonly Button _insertBtn = new() { Size = new Size(85, 30) };
+        private readonly Button _updateBtn = new() { Size = new Size(85, 30) };
+        private readonly Button _deleteBtn = new() { Size = new Size(85, 30) };
         private readonly Panel _groupBox = new();
         private readonly DataGridView _dataGridView = new() { SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
 
@@ -28,12 +28,12 @@ namespace WinFormsApp2
 
         private Form1()
         {
-            _insert.Left = 35;
-            _insert.Text = "Insert";
-            _update.Text = "Update";
-            _delete.Text = "Delete";
-            _update.Left = _insert.Right + 5;
-            _delete.Left = _update.Right + 5;
+            _insertBtn.Left = 35;
+            _insertBtn.Text = "Insert";
+            _updateBtn.Text = "Update";
+            _deleteBtn.Text = "Delete";
+            _updateBtn.Left = _insertBtn.Right + 5;
+            _deleteBtn.Left = _updateBtn.Right + 5;
             SuspendLayout();
             Size = new Size(800, 450);
             Load += Form1_Load;
@@ -47,9 +47,9 @@ namespace WinFormsApp2
             _groupBox.Controls.Add(_dataGridView);
             Controls.Add(_groupBox);
             ResumeLayout(false);
-            _insert.Click += (sender, e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
-            _update.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e); };
-            _delete.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e); };
+            _insertBtn.Click += (sender, e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
+            _updateBtn.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e); };
+            _deleteBtn.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e); };
             _dataGridView.SelectionChanged += _dataGridView_SelectionChanged;
         }
         private bool PrimaryKeyPopulatedCheck()
@@ -130,12 +130,12 @@ namespace WinFormsApp2
                 _groupBox.Controls.Add(item);
             }
 
-            _insert.Top = top;
-            _update.Top = top;
-            _delete.Top = top;
-            _groupBox.Controls.Add(_insert);
-            _groupBox.Controls.Add(_update);
-            _groupBox.Controls.Add(_delete);
+            _insertBtn.Top = top;
+            _updateBtn.Top = top;
+            _deleteBtn.Top = top;
+            _groupBox.Controls.Add(_insertBtn);
+            _groupBox.Controls.Add(_updateBtn);
+            _groupBox.Controls.Add(_deleteBtn);
             Populate();
         }
 
@@ -199,9 +199,7 @@ public class TableInfo
         var part = string.Join(",", items.Select(w => $"{w} = @{w}"));
         var cmd = new SqliteCommand($"update {TableName} set {part} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
         foreach (var item in ColInfos)
-        {
             cmd.Parameters.Add(new SqliteParameter($"@{item.Name}", item.Value == "BLANK" ? "" : item.Value == "" ? null : item.Value));
-        }
         return cmd;
     }
 
