@@ -51,6 +51,11 @@ namespace WinFormsApp2
             _updateBtn.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e); };
             _deleteBtn.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e); };
             _dataGridView.SelectionChanged += _dataGridView_SelectionChanged;
+            _dataGridView.Click += _dataGridView_SelectionChanged;
+            _groupBox.Controls.Add(_insertBtn);
+            _groupBox.Controls.Add(_updateBtn);
+            _groupBox.Controls.Add(_deleteBtn);
+            _groupBox.Visible = false;
         }
         private bool PrimaryKeyPopulatedCheck()
         {
@@ -64,31 +69,25 @@ namespace WinFormsApp2
         {
             if (Loading) return;
             var dict = new Dictionary<string, string>();
+
             foreach (DataGridViewCell cell in _dataGridView.SelectedCells)
-            {
-                var header = _dataGridView.Columns[cell.ColumnIndex].HeaderText;
-                var value = cell.Value.ToString();
-                dict.Add(header, value);
-            }
+                dict.Add(_dataGridView.Columns[cell.ColumnIndex].HeaderText, cell.Value.ToString());
+
             _tables[_groupBox.Name].SetValues(dict);
         }
 
         private void Populate()
         {
-            _sqliteConnection.Open();
             Loading = true;
-            var connection = _tables[_groupBox.Name].GetAll(_sqliteConnection);
-            _dataGridView.DataSource = null;
             var dataTable = new DataTable();
             var colNames = _tables[_groupBox.Name].ColInfos.Select(w => w.Name).ToArray();
             dataTable.Columns.AddRange(colNames.Select(w => new DataColumn(w)).ToArray());
 
-            using (var read = connection.ExecuteReader())
+            _sqliteConnection.Open();
+            using (var read = _tables[_groupBox.Name].GetAll(_sqliteConnection).ExecuteReader())
             {
                 while (read.Read())
-                {
                     dataTable.Rows.Add(colNames.Select(item => read.GetValue(read.GetOrdinal(item))).ToArray());
-                }
             }
 
             _sqliteConnection.Close();
@@ -133,9 +132,7 @@ namespace WinFormsApp2
             _insertBtn.Top = top;
             _updateBtn.Top = top;
             _deleteBtn.Top = top;
-            _groupBox.Controls.Add(_insertBtn);
-            _groupBox.Controls.Add(_updateBtn);
-            _groupBox.Controls.Add(_deleteBtn);
+            _groupBox.Visible = true;
             Populate();
         }
 
@@ -179,8 +176,8 @@ public class TableInfo
 
     public SqliteCommand Insert(SqliteConnection connection)
     {
-        var items = ColInfos.Where(q => q.Value != string.Empty).Where(e=> !e.AutoGen).ToArray();
-        var names = items.Select(w=> w.Name).ToArray();
+        var items = ColInfos.Where(q => q.Value != string.Empty).Where(e => !e.AutoGen).ToArray();
+        var names = items.Select(w => w.Name).ToArray();
         var sql =
             $"insert into {TableName} ({string.Join(",", names)}) values ({string.Join(",", names.Select(w => $"@{w}"))})";
         var cmd = new SqliteCommand(sql, connection);
@@ -190,8 +187,7 @@ public class TableInfo
         return cmd;
     }
 
-    public SqliteCommand Delete(SqliteConnection connection) =>
-         new($"delete from {TableName} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
+    public SqliteCommand Delete(SqliteConnection connection) => new($"delete from {TableName} where {PrimaryKey.Name} = {PrimaryKey.Value}", connection);
 
     public SqliteCommand Update(SqliteConnection connection)
     {
