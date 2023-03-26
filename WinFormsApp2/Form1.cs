@@ -16,12 +16,13 @@ namespace WinFormsApp2
             Application.Run(new Form1());
         }
 
-        private readonly ComboBox _tableSelectorBox = new();
+        private readonly ComboBox _tableSelectorBox = new() { Visible = false };
         private readonly Button _insertBtn = new() { Size = new Size(85, 30) };
         private readonly Button _updateBtn = new() { Size = new Size(85, 30) };
         private readonly Button _deleteBtn = new() { Size = new Size(85, 30) };
         private readonly Panel _groupBox = new();
-        private readonly DataGridView _dataGridView = new() { SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
+        private readonly TextBox _dbFilePathTextBox = new TextBox { ReadOnly = true, Left = 205, Multiline = false, Size = new Size(300, 30),Text = "Click Me To Open Db" };
+        private readonly DataGridView _dataGridView = new() { ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
 
         private List<Control> _addedControls = new();
         private Dictionary<string, TableInfo> _tables = new();
@@ -34,19 +35,17 @@ namespace WinFormsApp2
             _deleteBtn.Text = "Delete";
             _updateBtn.Left = _insertBtn.Right + 5;
             _deleteBtn.Left = _updateBtn.Right + 5;
-            SuspendLayout();
             Size = new Size(800, 450);
-            Load += Form1_Load;
             _tableSelectorBox.SelectedValueChanged += TableSelectorBox_SelectedValueChanged;
             FormBorderStyle = FormBorderStyle.FixedToolWindow;
             Controls.Add(_tableSelectorBox);
+            Controls.Add(_dbFilePathTextBox);
             _groupBox.Text = "";
             _groupBox.Size = new Size(Width - 33, Height - 105);
             _groupBox.Location = new Point(5, 50);
             _dataGridView.Size = new Size(_groupBox.Size.Width - 350, _groupBox.Height - 10);
             _groupBox.Controls.Add(_dataGridView);
             Controls.Add(_groupBox);
-            ResumeLayout(false);
             _insertBtn.Click += (sender, e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
             _updateBtn.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Update(_sqliteConnection).ExecuteNonQuery(), sender, e); };
             _deleteBtn.Click += (sender, e) => { if (PrimaryKeyPopulatedCheck()) Execute(table => _tables[table].Delete(_sqliteConnection).ExecuteNonQuery(), sender, e); };
@@ -56,7 +55,34 @@ namespace WinFormsApp2
             _groupBox.Controls.Add(_updateBtn);
             _groupBox.Controls.Add(_deleteBtn);
             _groupBox.Visible = false;
+            _dbFilePathTextBox.Click += _dbFilePathTextBox_Click;
         }
+
+        private void _dbFilePathTextBox_Click(object sender, EventArgs e)
+        {
+            _tableSelectorBox.Items.Clear();
+            _groupBox.Visible = false;
+            var openFile = new OpenFileDialog();
+            openFile.Title = "Load Sqlite db";
+            if(openFile.ShowDialog() != DialogResult.OK) { return; }
+            _tables = new Dictionary<string, TableInfo>();
+            _dbFilePathTextBox.Text = openFile.FileName;
+            _sqliteConnection = new SqliteConnection($"Data Source={openFile.FileName}");
+
+            var tableNames = Repo.QueryMany<TableDetail>(@"SELECT * from sqlite_master").ToArray();
+            foreach (var item in tableNames)
+            {
+                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});").ToArray();
+
+                foreach (var col in response) col.Sql = item.Sql;
+
+                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response });
+            }
+            _tableSelectorBox.Visible = true;
+            _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
+
+        }
+
         private bool PrimaryKeyPopulatedCheck()
         {
             var b = !string.IsNullOrWhiteSpace(_tables[_groupBox.Name].PrimaryKey.Value);
@@ -134,33 +160,6 @@ namespace WinFormsApp2
             _deleteBtn.Top = top;
             _groupBox.Visible = true;
             Populate();
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            var openFile = new OpenFileDialog();
-            openFile.Title = "Load Sqlite db";
-            if (openFile.ShowDialog() != DialogResult.OK)
-            {
-                Application.Exit();
-            }
-
-            _tables = new Dictionary<string, TableInfo>();
-
-            _sqliteConnection = new SqliteConnection($"Data Source={openFile.FileName}");
-
-            var tableNames = Repo.QueryMany<TableDetail>(@"SELECT * from sqlite_master").ToArray();
-            foreach (var item in tableNames)
-            {
-                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});").ToArray();
-
-                foreach (var col in response) col.Sql = item.Sql;
-
-                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response });
-            }
-
-            _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
-            _dataGridView.ReadOnly = true;
         }
     }
 }
