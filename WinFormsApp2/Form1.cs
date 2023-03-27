@@ -21,7 +21,7 @@ namespace WinFormsApp2
         private readonly Button _updateBtn = new() { Size = new Size(85, 30) };
         private readonly Button _deleteBtn = new() { Size = new Size(85, 30) };
         private readonly Panel _groupBox = new();
-        private readonly TextBox _dbFilePathTextBox = new TextBox { ReadOnly = true, Left = 205, Multiline = false, Size = new Size(300, 30),Text = "Click Me To Open Db" };
+        private readonly TextBox _dbFilePathTextBox = new TextBox { ReadOnly = true, Left = 205, Multiline = false, Size = new Size(300, 30), Text = "Click Me To Open Db" };
         private readonly DataGridView _dataGridView = new() { ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect, Size = new Size(450, 1), Location = new Point(310, 1), MultiSelect = false };
 
         private List<Control> _addedControls = new();
@@ -29,6 +29,7 @@ namespace WinFormsApp2
 
         private Form1()
         {
+            Text = "MKB Sqlite viewer";
             _insertBtn.Left = 35;
             _insertBtn.Text = "Insert";
             _updateBtn.Text = "Update";
@@ -37,13 +38,11 @@ namespace WinFormsApp2
             _deleteBtn.Left = _updateBtn.Right + 5;
             Size = new Size(800, 450);
             _tableSelectorBox.SelectedValueChanged += TableSelectorBox_SelectedValueChanged;
-            FormBorderStyle = FormBorderStyle.FixedToolWindow;
             Controls.Add(_tableSelectorBox);
             Controls.Add(_dbFilePathTextBox);
             _groupBox.Text = "";
-            _groupBox.Size = new Size(Width - 33, Height - 105);
             _groupBox.Location = new Point(5, 50);
-            _dataGridView.Size = new Size(_groupBox.Size.Width - 350, _groupBox.Height - 10);
+            Form1_Resize(this, EventArgs.Empty);
             _groupBox.Controls.Add(_dataGridView);
             Controls.Add(_groupBox);
             _insertBtn.Click += (sender, e) => Execute(table => _tables[table].Insert(_sqliteConnection).ExecuteNonQuery(), sender, e);
@@ -56,6 +55,13 @@ namespace WinFormsApp2
             _groupBox.Controls.Add(_deleteBtn);
             _groupBox.Visible = false;
             _dbFilePathTextBox.Click += _dbFilePathTextBox_Click;
+            Resize += Form1_Resize;
+        }
+
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            _groupBox.Size = new Size(Width - 33, Height - 105);
+            _dataGridView.Size = new Size(_groupBox.Size.Width - 350, _groupBox.Height - 10);
         }
 
         private void _dbFilePathTextBox_Click(object sender, EventArgs e)
@@ -64,7 +70,7 @@ namespace WinFormsApp2
             _groupBox.Visible = false;
             var openFile = new OpenFileDialog();
             openFile.Title = "Load Sqlite db";
-            if(openFile.ShowDialog() != DialogResult.OK) { return; }
+            if (openFile.ShowDialog() != DialogResult.OK) { return; }
             _tables = new Dictionary<string, TableInfo>();
             _dbFilePathTextBox.Text = openFile.FileName;
             _sqliteConnection = new SqliteConnection($"Data Source={openFile.FileName}");
