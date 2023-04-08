@@ -74,17 +74,17 @@ namespace SqliteCrud
             _dbFilePathTextBox.Text = openFile.FileName;
             _sqliteConnection = new SqliteConnection($"Data Source={openFile.FileName}");
 
-            var tableNames = _sqliteConnection.Query<TableDetail>(@"SELECT * from sqlite_master").ToArray();
+            var tableNames = _sqliteConnection.Query<TableDetail>(@"SELECT tbl_name as TableName,Sql from sqlite_master").ToArray();
             foreach (var item in tableNames)
             {
-                var response = _sqliteConnection.Query<ColInfo>($"PRAGMA table_info({item.tbl_name});").ToArray();
+                var response = _sqliteConnection.Query<ColInfo>($"PRAGMA table_info({item.TableName});").ToArray();
 
                 foreach (var col in response) col.Sql = item.Sql;
 
-                _tables.Add(item.tbl_name, new TableInfo { TableName = item.tbl_name, ColInfos = response });
+                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response });
             }
             _tableSelectorBox.Visible = true;
-            _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.tbl_name).ToArray());
+            _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
 
         }
 
@@ -225,7 +225,7 @@ public class TableInfo
 
 public class TableDetail
 {
-    public string tbl_name { get; set; }
+    public string TableName { get; set; }
     public string Sql { get; set; }
 }
 
