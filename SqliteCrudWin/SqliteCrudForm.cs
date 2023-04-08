@@ -1,4 +1,5 @@
 using System.Data;
+using Dapper;
 using Microsoft.Data.Sqlite;
 using Mkb.DapperRepo.Attributes;
 
@@ -7,7 +8,6 @@ namespace SqliteCrud
     public class SqliteCrudForm : Form
     {
         private static SqliteConnection _sqliteConnection;
-        private static readonly Mkb.DapperRepo.Repo.SqlRepo Repo = new(() => _sqliteConnection);
         private static bool Loading = false;
         [STAThread]
         private static void Main()
@@ -75,17 +75,17 @@ namespace SqliteCrud
             _dbFilePathTextBox.Text = openFile.FileName;
             _sqliteConnection = new SqliteConnection($"Data Source={openFile.FileName}");
 
-            var tableNames = Repo.QueryMany<TableDetail>(@"SELECT * from sqlite_master").ToArray();
+            var tableNames = _sqliteConnection.Query<TableDetail>(@"SELECT * from sqlite_master").ToArray();
             foreach (var item in tableNames)
             {
-                var response = Repo.QueryMany<ColInfo>($"PRAGMA table_info({item.TableName});").ToArray();
+                var response = _sqliteConnection.Query<ColInfo>($"PRAGMA table_info({item.tbl_name});").ToArray();
 
                 foreach (var col in response) col.Sql = item.Sql;
 
-                _tables.Add(item.TableName, new TableInfo { TableName = item.TableName, ColInfos = response });
+                _tables.Add(item.tbl_name, new TableInfo { TableName = item.tbl_name, ColInfos = response });
             }
             _tableSelectorBox.Visible = true;
-            _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.TableName).ToArray());
+            _tableSelectorBox.Items.AddRange(tableNames.Select(w => w.tbl_name).ToArray());
 
         }
 
@@ -226,8 +226,7 @@ public class TableInfo
 
 public class TableDetail
 {
-    [SqlColumnName("tbl_name")]
-    public string TableName { get; set; }
+    public string tbl_name { get; set; }
     public string Sql { get; set; }
 }
 
