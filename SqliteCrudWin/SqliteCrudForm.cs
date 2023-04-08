@@ -2,9 +2,9 @@ using System.Data;
 using Microsoft.Data.Sqlite;
 using Mkb.DapperRepo.Attributes;
 
-namespace WinFormsApp2
+namespace SqliteCrud
 {
-    public class Form1 : Form
+    public class SqliteCrudForm : Form
     {
         private static SqliteConnection _sqliteConnection;
         private static readonly Mkb.DapperRepo.Repo.SqlRepo Repo = new(() => _sqliteConnection);
@@ -13,7 +13,7 @@ namespace WinFormsApp2
         private static void Main()
         {
             ApplicationConfiguration.Initialize();
-            Application.Run(new Form1());
+            Application.Run(new SqliteCrudForm());
         }
 
         private readonly ComboBox _tableSelectorBox = new() { Visible = false };
@@ -27,7 +27,7 @@ namespace WinFormsApp2
         private List<Control> _addedControls = new();
         private Dictionary<string, TableInfo> _tables = new();
 
-        private Form1()
+        private SqliteCrudForm()
         {
             Text = "MKB Sqlite viewer";
             _insertBtn.Left = 35;
@@ -91,10 +91,10 @@ namespace WinFormsApp2
 
         private bool PrimaryKeyPopulatedCheck()
         {
-            var b = !string.IsNullOrWhiteSpace(_tables[_groupBox.Name].PrimaryKey.Value);
-            if (!b)
+            var valueIsNotNullOrEmpty = !string.IsNullOrWhiteSpace(_tables[_groupBox.Name].PrimaryKey.Value);
+            if (!valueIsNotNullOrEmpty)
                 MessageBox.Show("To update and delete you need a primary key to be populated");
-            return b;
+            return valueIsNotNullOrEmpty;
         }
 
         private void _dataGridView_SelectionChanged(object sender, EventArgs e)
