@@ -235,7 +235,7 @@ public record ColInfo
     public string Name { get; set; }
     public string Type { get; set; }
     public string Sql { get; set; }
-    public bool AutoGen => (Pk && Sql.ToLower().Contains("autoincrement"));
+    public bool AutoGen => Pk && Sql.ToLower().Contains("autoincrement");
     private Control ControlItem = new TextBox();
 
     public void SetValue(string text)
