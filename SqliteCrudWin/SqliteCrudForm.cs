@@ -240,15 +240,15 @@ public record ColInfo
 
     public void SetValue(string text)
     {
-        if (ControlItem is CheckBox)
+        if (ControlItem is CheckBox box)
         {
-            ((CheckBox)ControlItem).Checked = bool.Parse(text == "" ? "false" : text);
+            box.Checked = bool.Parse(text == "" ? "false" : text);
             return;
         }
         ControlItem.Text = text;
     }
 
-    public string Value => ControlItem is CheckBox ? ((CheckBox)ControlItem).Checked.ToString() : ControlItem.Text;
+    public string Value => ControlItem is CheckBox box ? box.Checked.ToString() : ControlItem.Text;
 
     public Control WindowControl()
     {
@@ -330,7 +330,6 @@ public enum CSharpType
     TEXT,
     BLOB,
     REAL, // decimal
-
     //   NUMERIC       //we are going to cheat this, we are going to treat numeric as int , decimal as real , boolean as int , and give date\dateime there own types
     DATE,
     DATETIME,
