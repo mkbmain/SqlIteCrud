@@ -305,9 +305,9 @@ public record ColInfo
 
         var lower = Type.ToLower();
 
-        if (lower.Contains("int") || lower.Contains("NUMERIC"))
+        if (lower.Contains("int") || lower.Contains("numeric"))
             cSharpType = CSharpType.INTEGER;
-        else if (lower.Contains("decimal") || lower.Contains("NUMERIC") || lower.Contains("real") ||
+        else if (lower.Contains("decimal") || lower.Contains("numeric") || lower.Contains("real") ||
             lower.Contains("double") || lower.Contains("float"))
             cSharpType = CSharpType.REAL;
         else if (lower.Contains("datetime"))
